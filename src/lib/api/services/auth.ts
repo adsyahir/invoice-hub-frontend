@@ -21,6 +21,7 @@ export interface AcceptInviteInput {
   token?: string;
   fullName: string;
   password: string;
+  confirmPassword: string;
 }
 
 export interface MeResponse {
@@ -115,7 +116,11 @@ export const acceptInvite = (payload: AcceptInviteInput): Promise<AuthResponse> 
   instance
     .post<AuthApiResponse>(
       "/teams/invite/accept",
-      { fullName: payload.fullName, password: payload.password },
+      {
+        fullName: payload.fullName,
+        password: payload.password,
+        confirmPassword: payload.confirmPassword,
+      },
       { params: { token: payload.token } },
     )
     .then((r) => ({

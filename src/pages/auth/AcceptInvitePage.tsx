@@ -40,11 +40,12 @@ export default function AcceptInvitePage() {
     clearErrors();
     setSubmitting(true);
     try {
-      // POST /auth/accept-invite — sets password and joins the workspace.
+      // POST /teams/invite/accept — sets password and joins the workspace.
       const data = await api.auth.acceptInvite({
         token: inviteToken,
         fullName: values.fullName,
         password: values.password,
+        confirmPassword: values.confirm,
       });
       setSession(data.user, data.token, data.tenant);
       navigate("/dashboard"); 
