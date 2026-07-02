@@ -1,5 +1,4 @@
 import { instance } from "./axios";
-import type { ApiResponse } from "./types";
 import type { Tenant, User } from "@/types";
 
 /** Shape returned by login / register / accept-invite. Adjust to your backend. */
@@ -54,7 +53,7 @@ export const me = (): Promise<MeResponse> =>
  * We map these into the richer frontend `User`/`Tenant` contracts below.
  */
 interface BackendUser {
-  id: number;
+  uuid: string;
   fullName: string;
   email: string;
   role: User["role"];
@@ -76,7 +75,7 @@ interface AuthApiResponse {
 }
 
 const mapUser = (u: BackendUser): User => ({
-  id: String(u.id),
+  uuid: u.uuid,
   keycloakId: "",
   email: u.email,
   fullName: u.fullName,
@@ -111,20 +110,30 @@ export const register = (payload: RegisterInput): Promise<AuthResponse> =>
       permissions: r.data.permissions ?? [],
     }));
 
-export const acceptInvite = (payload: AcceptInviteInput) =>
+/** POST /api/teams/invite/accept?token=… — creates the account and signs in. */
+export const acceptInvite = (payload: AcceptInviteInput): Promise<AuthResponse> =>
   instance
-    .post<ApiResponse<AuthResponse>>("/auth/accept-invite", payload)
-    .then((r) => r.data.data);
+    .post<AuthApiResponse>(
+      "/teams/invite/accept",
+      { fullName: payload.fullName, password: payload.password },
+      { params: { token: payload.token } },
+    )
+    .then((r) => ({
+      user: mapUser(r.data.user),
+      tenant: r.data.tenant ? mapTenant(r.data.tenant) : undefined,
+      token: r.data.token ?? "",
+      permissions: r.data.permissions ?? [],
+    }));
 
 export const forgotPassword = (email: string) =>
   instance
-    .post<ApiResponse<void>>("/auth/forgot-password", { email })
-    .then((r) => r.data.data);
+    .post<void>("/auth/forgot-password", { email })
+    .then((r) => r.data);
 
 export const resetPassword = (token: string, password: string) =>
   instance
-    .post<ApiResponse<void>>("/auth/reset-password", { token, password })
-    .then((r) => r.data.data);
+    .post<void>("/auth/reset-password", { token, password })
+    .then((r) => r.data);
 
 // Single-flight: concurrent callers (StrictMode's double-invoked effect, or
 // several 401s at once) share one in-flight /auth/refresh instead of each firing
@@ -144,4 +153,4 @@ export const refresh = (): Promise<{ token: string }> => {
 };
 
 export const logout = () =>
-  instance.post<ApiResponse<void>>("/auth/logout").then((r) => r.data.data);
+  instance.post<void>("/auth/logout").then((r) => r.data);

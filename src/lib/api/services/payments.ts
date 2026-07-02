@@ -1,5 +1,4 @@
 import { instance } from "./axios";
-import type { ApiResponse } from "./types";
 import type { Payment, PaymentMethod } from "@/types";
 
 export interface ManualPaymentInput {
@@ -16,14 +15,14 @@ export interface RefundInput {
 }
 
 export const list = () =>
-  instance.get<ApiResponse<Payment[]>>("/payments").then((r) => r.data.data);
+  instance.get<Payment[]>("/payments").then((r) => r.data);
 
 export const recordManual = (payload: ManualPaymentInput) =>
   instance
-    .post<ApiResponse<Payment>>("/payments", payload)
-    .then((r) => r.data.data);
+    .post<Payment>("/payments", payload)
+    .then((r) => r.data);
 
 export const refund = (paymentId: string, payload: RefundInput = {}) =>
   instance
-    .post<ApiResponse<Payment>>(`/payments/${paymentId}/refund`, payload)
-    .then((r) => r.data.data);
+    .post<Payment>(`/payments/${paymentId}/refund`, payload)
+    .then((r) => r.data);

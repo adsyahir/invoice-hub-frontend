@@ -22,7 +22,6 @@ import type {
   RevenuePoint,
   SubscriptionPlan,
   Tenant,
-  User,
 } from "@/types";
 import { mockDelay } from "./client";
 import * as clientsApi from "./clients";
@@ -38,7 +37,6 @@ import {
   mockPlans,
   mockRevenueSeries,
   mockTenants,
-  mockUsers,
 } from "@/lib/mock/data";
 
 export const queryKeys = {

@@ -1,5 +1,4 @@
 import { instance } from "./axios";
-import type { ApiResponse } from "./types";
 import type { User, UserRole } from "@/types";
 
 export interface InviteInput {
@@ -8,13 +7,13 @@ export interface InviteInput {
 }
 
 export const list = () =>
-  instance.get<ApiResponse<User[]>>("/teams").then((r) => r.data.data);
+  instance.get<User[]>("/teams").then((r) => r.data);
 
 export const invite = (payload: InviteInput) =>
-  instance.post<ApiResponse<User>>("/teams/invite", payload).then((r) => r.data.data);
+  instance.post<User>("/teams/invite", payload).then((r) => r.data);
 
-export const resendInvite = (id: string) =>
-  instance.post<ApiResponse<void>>(`/teams/${id}/resend-invite`).then((r) => r.data.data);
+export const resendInvite = (uuid: string) =>
+  instance.post<void>(`/teams/${uuid}/resend-invite`).then((r) => r.data);
 
-export const remove = (id: string) =>
-  instance.delete<ApiResponse<void>>(`/teams/${id}`).then((r) => r.data.data);
+export const remove = (uuid: string) =>
+  instance.delete<void>(`/teams/${uuid}`).then((r) => r.data);

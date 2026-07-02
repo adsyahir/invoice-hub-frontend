@@ -28,7 +28,7 @@ import type {
 
 export const mockUsers: User[] = [
   {
-    id: "u-1",
+    uuid: "u-1",
     keycloakId: "kc-1",
     email: "admin@novosoft.dev",
     fullName: "Adam Rahman",
@@ -38,7 +38,7 @@ export const mockUsers: User[] = [
     createdAt: "2025-11-02T09:00:00Z",
   },
   {
-    id: "u-2",
+    uuid: "u-2",
     keycloakId: "kc-2",
     email: "sarah.lim@novosoft.dev",
     fullName: "Sarah Lim",
@@ -49,7 +49,7 @@ export const mockUsers: User[] = [
     createdAt: "2025-11-10T03:00:00Z",
   },
   {
-    id: "u-3",
+    uuid: "u-3",
     keycloakId: "kc-3",
     email: "daniel.tan@novosoft.dev",
     fullName: "Daniel Tan",
@@ -60,7 +60,7 @@ export const mockUsers: User[] = [
     createdAt: "2026-01-15T02:00:00Z",
   },
   {
-    id: "u-4",
+    uuid: "u-4",
     keycloakId: "kc-4",
     email: "priya.nair@novosoft.dev",
     fullName: "Priya Nair",
@@ -71,7 +71,7 @@ export const mockUsers: User[] = [
     createdAt: "2026-03-01T06:00:00Z",
   },
   {
-    id: "u-5",
+    uuid: "u-5",
     keycloakId: "kc-5",
     email: "wei.chong@novosoft.dev",
     fullName: "Wei Chong",

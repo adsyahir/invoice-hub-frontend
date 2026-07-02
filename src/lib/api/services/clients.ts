@@ -1,5 +1,4 @@
 import { instance } from "./axios";
-import type { ApiResponse } from "./types";
 import type { Client, CurrencyCode } from "@/types";
 
 export interface ClientInput {
@@ -18,18 +17,18 @@ export interface ClientInput {
 }
 
 export const list = () =>
-  instance.get<ApiResponse<Client[]>>("/clients").then((r) => r.data.data);
+  instance.get<Client[]>("/clients").then((r) => r.data);
 
 export const get = (id: string) =>
-  instance.get<ApiResponse<Client>>(`/clients/${id}`).then((r) => r.data.data);
+  instance.get<Client>(`/clients/${id}`).then((r) => r.data);
 
 export const create = (payload: ClientInput) =>
-  instance.post<ApiResponse<Client>>("/clients", payload).then((r) => r.data.data);
+  instance.post<Client>("/clients", payload).then((r) => r.data);
 
 export const update = (id: string, payload: Partial<ClientInput>) =>
   instance
-    .put<ApiResponse<Client>>(`/clients/${id}`, payload)
-    .then((r) => r.data.data);
+    .put<Client>(`/clients/${id}`, payload)
+    .then((r) => r.data);
 
 export const remove = (id: string) =>
-  instance.delete<ApiResponse<void>>(`/clients/${id}`).then((r) => r.data.data);
+  instance.delete<void>(`/clients/${id}`).then((r) => r.data);

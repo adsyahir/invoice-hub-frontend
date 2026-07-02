@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, MoreHorizontal, UserPlus } from "lucide-react";
+import { Loader2, Mail, MoreHorizontal, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SettingsNav } from "@/components/settings/SettingsNav";
@@ -34,12 +34,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useInviteMember, useTeamMembers } from "@/lib/api/services/queries";
+import { queryKeys, useTeamMembers } from "@/lib/api/services/queries";
 import { inviteRoleOptions } from "@/lib/options";
 import { roleLabels } from "@/config/nav";
-import { formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { UserStatus } from "@/types";
+import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const statusClass: Record<UserStatus, string> = {
   ACTIVE: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
@@ -57,25 +58,25 @@ function InviteMemberDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("ACCOUNTANT");
-  const invite = useInviteMember();
+  const [submitting, setSubmitting] = useState(false);
+  const qc = useQueryClient();
 
-  const submit = () =>{
-
-  }
-
-    // invite.mutate(
-    //   { email, role },
-    //   {
-    //     onSuccess: () => {
-    //       toast.success("Invitation sent", {
-    //         description: `${email} has 48 hours to accept.`,
-    //       });
-    //       setOpen(false);
-    //       setEmail("");
-    //     },
-    //   },
-    // );
-
+  const inviteTeamMember = async () => {
+    setSubmitting(true);
+    try {
+      await api.team.invite({ email, role });
+      await qc.invalidateQueries({ queryKey: queryKeys.team }); // ← show the new invitee
+      toast.success("Invitation sent successfully");
+      setOpen(false); // close the modal
+      setEmail(""); // reset for next time
+    } catch (e) {
+      console.error("Error inviting member:", e);
+      toast.error("Failed to send invitation");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+ 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>
@@ -109,11 +110,12 @@ function InviteMemberDialog() {
           </FormRow>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={!email || invite.isPending}>
-            Send invitation
+          <Button onClick={() => inviteTeamMember()} disabled={!email || submitting}>
+            {submitting && <Loader2 className="size-4 animate-spin" />}
+            {submitting ? "Sending…" : "Send invitation"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -122,8 +124,22 @@ function InviteMemberDialog() {
 }
 
 export default function TeamPage() {
+  
   const { data, isLoading } = useTeamMembers();
   console.log("Team members:", data);
+  const qc = useQueryClient();   // ← the cache controller
+
+ const removeMember = async (uuid: string) => {
+  try {
+    await api.team.remove(uuid);
+    await qc.invalidateQueries({ queryKey: queryKeys.team }); // ← refetch the team list
+    toast.success("Member removed successfully");
+  } catch (e) {
+    console.error("Error removing member:", e);
+  }
+}
+
+
   return (
     <>
       <PageHeader
@@ -154,7 +170,7 @@ export default function TeamPage() {
                   </TableRow>
                 ))
               : (data ?? []).map((m) => (
-                  <TableRow key={m.id}>
+                  <TableRow key={m.uuid}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="size-8">
@@ -195,7 +211,7 @@ export default function TeamPage() {
                           )}
                           <DropdownMenuItem
                             variant="destructive"
-                            onClick={() => toast.success("Member removed")}
+                            onClick={() => removeMember(m.uuid)}
                           >
                             Remove
                           </DropdownMenuItem>

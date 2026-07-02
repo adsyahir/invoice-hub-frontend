@@ -1,5 +1,4 @@
 import { instance } from "./axios";
-import type { ApiResponse } from "./types";
 import type {
   CurrencyCode,
   Invoice,
@@ -34,12 +33,12 @@ export interface InvoiceInput {
 
 export const list = (params?: InvoiceListParams) =>
   instance
-    .get<ApiResponse<Invoice[]>>("/invoices", { params })
-    .then((r) => r.data.data);
+    .get<Invoice[]>("/invoices", { params })
+    .then((r) => r.data);
 
 // Fetch one invoice by its public uuid (backend GET /invoices/{uuid}).
 export const get = (uuid: string) =>
-  instance.get<ApiResponse<Invoice>>(`/invoices/${uuid}`).then((r) => r.data.data);
+  instance.get<Invoice>(`/invoices/${uuid}`).then((r) => r.data);
 
 /**
  * Backend POST /invoices/create returns a flat summary Map (NOT the ApiResponse
@@ -63,29 +62,29 @@ export const create = (payload: InvoiceInput) =>
 
 // export const update = (id: string, payload: Partial<InvoiceInput>) =>
 //   instance
-//     .put<ApiResponse<Invoice>>(`/invoices/${id}`, payload)
-//     .then((r) => r.data.data);
+//     .put<Invoice>(`/invoices/${id}`, payload)
+//     .then((r) => r.data);
 
 // export const send = (id: string) =>
-//   instance.post<ApiResponse<Invoice>>(`/invoices/${id}/send`).then((r) => r.data.data);
+//   instance.post<Invoice>(`/invoices/${id}/send`).then((r) => r.data);
 
 // export const voidInvoice = (id: string) =>
-//   instance.post<ApiResponse<Invoice>>(`/invoices/${id}/void`).then((r) => r.data.data);
+//   instance.post<Invoice>(`/invoices/${id}/void`).then((r) => r.data);
 
 // export const duplicate = (id: string) =>
 //   instance
-//     .post<ApiResponse<Invoice>>(`/invoices/${id}/duplicate`)
-//     .then((r) => r.data.data);
+//     .post<Invoice>(`/invoices/${id}/duplicate`)
+//     .then((r) => r.data);
 
 // export const getAuditLog = (id: string) =>
 //   instance
-//     .get<ApiResponse<AuditLog[]>>(`/invoices/${id}/audit-log`)
-//     .then((r) => r.data.data);
+//     .get<AuditLog[]>(`/invoices/${id}/audit-log`)
+//     .then((r) => r.data);
 
 // export const getPayments = (id: string) =>
 //   instance
-//     .get<ApiResponse<Payment[]>>(`/invoices/${id}/payments`)
-//     .then((r) => r.data.data);
+//     .get<Payment[]>(`/invoices/${id}/payments`)
+//     .then((r) => r.data);
 
 // /** Returns the PDF as a Blob for download. */
 // export const getPdf = (id: string) =>

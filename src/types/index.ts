@@ -77,7 +77,7 @@ export interface SubscriptionPlan {
 // ---------------------------------------------------------------------------
 
 export interface User {
-  id: string;
+  uuid: string;
   keycloakId: string;
   email: string;
   fullName: string;
