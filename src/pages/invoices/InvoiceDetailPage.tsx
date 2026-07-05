@@ -12,13 +12,16 @@ import {
   FileWarning,
   Link2,
   Pencil,
+  QrCode,
   ReceiptText,
   Send,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import {
+  EInvoiceStatusBadge,
   InvoiceStatusBadge,
   PaymentStatusBadge,
 } from "@/components/common/StatusBadge";
@@ -53,6 +56,7 @@ import {
   useSendInvoice,
   useDuplicateInvoice,
   useVoidInvoice,
+  useSubmitEInvoice,
 } from "@/lib/api/services/queries";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { paymentMethodLabel, invoiceStatusStyle } from "@/lib/status";
@@ -68,6 +72,7 @@ export default function InvoiceDetailPage() {
   const send = useSendInvoice();
   const duplicate = useDuplicateInvoice();
   const voidInvoice = useVoidInvoice();
+  const submitEInvoice = useSubmitEInvoice();
   const [voidOpen, setVoidOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
 
@@ -88,6 +93,13 @@ export default function InvoiceDetailPage() {
   const canVoid = !["VOID", "PAID", "REFUNDED"].includes(invoice.status);
   const canSend = isDraft || invoice.status === "SENT";
   const canCredit = invoice.status === "PAID";
+
+  // LHDN MyInvois: can submit when not yet accepted and the invoice is live.
+  // Backend may not send einvoiceStatus yet — treat missing as NOT_SUBMITTED.
+  const eStatus = invoice.einvoiceStatus ?? "NOT_SUBMITTED";
+  const canSubmitEInvoice =
+    invoice.status !== "VOID" &&
+    (eStatus === "NOT_SUBMITTED" || eStatus === "REJECTED");
 
   const settled = ["PAID", "VOID", "REFUNDED"].includes(invoice.status);
   const daysToDue = differenceInCalendarDays(new Date(invoice.dueDate), new Date());
@@ -147,6 +159,15 @@ export default function InvoiceDetailPage() {
       onSuccess: () => toast.success("Invoice duplicated as a new draft."),
     });
 
+  const handleSubmitEInvoice = () =>
+    submitEInvoice.mutate(invoice.id, {
+      onSuccess: () =>
+        toast.success("Submitted to MyInvois", {
+          description:
+            "LHDN is validating the e-invoice. The QR code appears once it's approved.",
+        }),
+    });
+
   const handleVoid = () =>
     voidInvoice.mutate(invoice.id, {
       onSuccess: () => {
@@ -174,6 +195,7 @@ export default function InvoiceDetailPage() {
                 {invoice.invoiceNumber}
               </h1>
               <InvoiceStatusBadge status={invoice.status} />
+              <EInvoiceStatusBadge status={invoice.einvoiceStatus} />
             </div>
             <p className="text-sm text-muted-foreground">{invoice.client?.name}</p>
           </div>
@@ -188,6 +210,16 @@ export default function InvoiceDetailPage() {
             <Copy className="size-4" />
             Duplicate
           </Button>
+          {canSubmitEInvoice && (
+            <Button
+              variant="outline"
+              onClick={handleSubmitEInvoice}
+              disabled={submitEInvoice.isPending}
+            >
+              <ShieldCheck className="size-4" />
+              {eStatus === "REJECTED" ? "Resubmit to MyInvois" : "Submit to MyInvois"}
+            </Button>
+          )}
           {canCredit && (
             <Button variant="outline" onClick={() => setCreditOpen(true)}>
               <ReceiptText className="size-4" />
@@ -394,6 +426,9 @@ export default function InvoiceDetailPage() {
                       {invoice.client.city ? `, ${invoice.client.city}` : ""}
                     </p>
                   )}
+                  {invoice.client?.tin && (
+                    <p className="text-muted-foreground">TIN: {invoice.client.tin}</p>
+                  )}
                   {invoice.client?.taxId && (
                     <p className="text-muted-foreground">Tax ID: {invoice.client.taxId}</p>
                   )}
@@ -404,6 +439,73 @@ export default function InvoiceDetailPage() {
                     <p className="mt-1 text-xs text-muted-foreground">From {tenant.name}</p>
                   )}
                 </div>
+              </div>
+
+              {/* LHDN MyInvois compliance panel. TODO(backend): render the real
+                  validation QR from invoice.einvoiceValidationUrl (e.g. via a
+                  qrcode lib) once the invoice is VALIDATED. */}
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">LHDN e-Invoice</span>
+                    <EInvoiceStatusBadge status={invoice.einvoiceStatus} />
+                  </div>
+                  {invoice.myinvoisUuid ? (
+                    <dl className="grid gap-x-4 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-[auto_1fr]">
+                      <dt className="font-medium">UUID</dt>
+                      <dd className="font-mono">{invoice.myinvoisUuid}</dd>
+                      {invoice.myinvoisLongId && (
+                        <>
+                          <dt className="font-medium">Long ID</dt>
+                          <dd className="font-mono break-all">
+                            {invoice.myinvoisLongId}
+                          </dd>
+                        </>
+                      )}
+                      {invoice.einvoiceValidatedAt && (
+                        <>
+                          <dt className="font-medium">Validated</dt>
+                          <dd>{formatDateTime(invoice.einvoiceValidatedAt)}</dd>
+                        </>
+                      )}
+                    </dl>
+                  ) : invoice.einvoiceStatus === "REJECTED" ? (
+                    <p className="text-xs text-destructive">
+                      {invoice.einvoiceRejectionReason ??
+                        "LHDN rejected this e-invoice."}
+                    </p>
+                  ) : invoice.einvoiceStatus === "PENDING" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Submitted to LHDN — awaiting validation. The QR code appears
+                      once approved.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Not yet submitted to MyInvois.
+                    </p>
+                  )}
+                  {invoice.einvoiceValidationUrl && (
+                    <a
+                      href={invoice.einvoiceValidationUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Verify on MyInvois portal
+                    </a>
+                  )}
+                </div>
+                {/* Validation QR — placeholder box; swap for a real QR of einvoiceValidationUrl. */}
+                {invoice.einvoiceValidationUrl ? (
+                  <div className="flex size-24 shrink-0 items-center justify-center rounded-md border bg-background">
+                    <QrCode className="size-12 text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="flex size-24 shrink-0 items-center justify-center rounded-md border border-dashed bg-background">
+                    <QrCode className="size-8 text-muted-foreground/40" />
+                  </div>
+                )}
               </div>
 
               <div className="overflow-x-auto">

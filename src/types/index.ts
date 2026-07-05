@@ -32,6 +32,21 @@ export type InvoiceStatus =
   | "VOID"
   | "REFUNDED";
 
+/**
+ * LHDN MyInvois e-invoice lifecycle (Malaysia).
+ *  NOT_SUBMITTED — created locally, not yet sent to LHDN
+ *  PENDING       — submitted, awaiting LHDN validation
+ *  VALIDATED     — LHDN accepted; UUID + validation QR issued
+ *  REJECTED      — LHDN rejected (see einvoiceRejectionReason)
+ *  CANCELLED     — cancelled within the 72-hour window after validation
+ */
+export type EInvoiceStatus =
+  | "NOT_SUBMITTED"
+  | "PENDING"
+  | "VALIDATED"
+  | "REJECTED"
+  | "CANCELLED";
+
 export type PaymentMethod =
   | "CARD"
   | "BANK_TRANSFER"
@@ -54,6 +69,11 @@ export interface Tenant {
   schemaName: string;
   plan: TenantPlan;
   status: TenantStatus;
+  // LHDN MyInvois supplier identity — required to submit e-invoices.
+  tin?: string;              // Tax Identification Number (issued by LHDN)
+  sstNumber?: string;        // SST registration number, if SST-registered
+  businessRegNo?: string;    // SSM business registration number (BRN)
+  msicCode?: string;         // Malaysia Standard Industrial Classification code
   maxUsers: number;
   maxInvoicesPerMonth: number;
   // Derived usage stats (super-admin view)
@@ -103,6 +123,10 @@ export interface Client {
   postcode?: string;
   country?: string;
   taxId?: string;
+  // LHDN MyInvois buyer identity — needed on the e-invoice; verified against LHDN.
+  tin?: string;              // buyer's Tax Identification Number
+  sstNumber?: string;        // buyer's SST registration number, if any
+  businessRegNo?: string;    // buyer's SSM business registration number (BRN)
   currency: CurrencyCode;
   paymentTermsDays: number;
   createdAt: string;
@@ -142,6 +166,15 @@ export interface Invoice {
   paymentLinkExpiresAt?: string | null;
   sentAt?: string | null;
   paidAt?: string | null;
+  // --- LHDN MyInvois e-invoice (Malaysia) ---
+  einvoiceStatus: EInvoiceStatus;
+  einvoiceType?: string;              // LHDN document type code: "01" Invoice, "02" Credit Note, "03" Debit Note…
+  myinvoisUuid?: string | null;       // LHDN-assigned unique identifier
+  myinvoisLongId?: string | null;     // long ID used to build the validation URL / QR
+  einvoiceValidationUrl?: string | null; // encoded into the QR shown on the PDF
+  einvoiceSubmittedAt?: string | null;
+  einvoiceValidatedAt?: string | null;
+  einvoiceRejectionReason?: string | null;
   lineItems: InvoiceLineItem[];
   createdAt: string;
   updatedAt: string;

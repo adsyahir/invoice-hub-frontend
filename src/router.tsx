@@ -24,6 +24,7 @@ import ClientFormPage from "@/pages/clients/ClientFormPage";
 import ClientDetailPage from "@/pages/clients/ClientDetailPage";
 import PaymentsPage from "@/pages/payments/PaymentsPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
+import AssistantPage from "@/pages/assistant/AssistantPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import TeamPage from "@/pages/settings/TeamPage";
 import BillingPage from "@/pages/settings/BillingPage";
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
           { path: "/clients/:id/edit", element: <ClientFormPage /> },
           { path: "/payments", element: <PaymentsPage /> },
           { path: "/reports", element: <ReportsPage /> },
+          { path: "/assistant", element: <AssistantPage /> },
           {
             element: <RequireRole allow={["TENANT_ADMIN", "SUPER_ADMIN"]} />,
             children: [

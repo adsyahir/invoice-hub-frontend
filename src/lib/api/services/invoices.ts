@@ -76,6 +76,28 @@ export const create = (payload: InvoiceInput) =>
 //     .post<Invoice>(`/invoices/${id}/duplicate`)
 //     .then((r) => r.data);
 
+// --- LHDN MyInvois e-invoicing (Malaysia) ---
+
+/** Submit the invoice to LHDN MyInvois; returns the updated invoice. */
+export const submitEInvoice = (id: string) =>
+  instance
+    .post<Invoice>(`/invoices/${id}/einvoice/submit`)
+    .then((r) => r.data);
+
+// TODO(backend): not implemented server-side yet.
+// export const cancelEInvoice = (id: string, reason: string) =>
+//   instance
+//     .post<Invoice>(`/invoices/${id}/einvoice/cancel`, { reason })
+//     .then((r) => r.data);
+//
+// /** Verify a buyer's TIN against LHDN before issuing an e-invoice. */
+// export const verifyTin = (tin: string, brn?: string) =>
+//   instance
+//     .get<{ valid: boolean; name?: string }>("/einvoice/verify-tin", {
+//       params: { tin, brn },
+//     })
+//     .then((r) => r.data);
+
 // export const getAuditLog = (id: string) =>
 //   instance
 //     .get<AuditLog[]>(`/invoices/${id}/audit-log`)

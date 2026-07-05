@@ -92,6 +92,10 @@ export const currentTenant: Tenant = {
   schemaName: "tenant_novosoft",
   plan: "PROFESSIONAL",
   status: "ACTIVE",
+  tin: "C25845632100",
+  sstNumber: "W10-1808-32000123",
+  businessRegNo: "201501004567 (1131234-A)",
+  msicCode: "62010",
   maxUsers: 25,
   maxInvoicesPerMonth: 1000,
   userCount: 5,
@@ -116,6 +120,9 @@ export const mockClients: Client[] = [
     state: "WP Kuala Lumpur",
     country: "Malaysia",
     taxId: "C20100012345",
+    tin: "C20100012345",
+    sstNumber: "B16-2109-31000456",
+    businessRegNo: "199701009827 (426934-P)",
     currency: "MYR",
     paymentTermsDays:30,
     createdAt: "2025-11-12T02:00:00Z",
@@ -131,6 +138,8 @@ export const mockClients: Client[] = [
     state: "WP Kuala Lumpur",
     country: "Malaysia",
     taxId: "C20100098765",
+    tin: "C20100098765",
+    businessRegNo: "201801019235 (1284356-U)",
     currency: "MYR",
     paymentTermsDays:45,
     createdAt: "2025-12-01T02:00:00Z",
@@ -272,7 +281,87 @@ type InvoiceSeed = {
   sentAt?: string | null;
   paidAt?: string | null;
   notes?: string;
+  /** Override the derived MyInvois status (defaults from `status`). */
+  einvoice?: Invoice["einvoiceStatus"];
 };
+
+/**
+ * Derive the LHDN MyInvois e-invoice block. Drafts aren't submitted; anything
+ * sent to a customer is normally validated (unless the seed overrides it, e.g.
+ * to show a PENDING or REJECTED example on the detail screen).
+ */
+function buildEInvoice(
+  seed: InvoiceSeed,
+): Pick<
+  Invoice,
+  | "einvoiceStatus"
+  | "einvoiceType"
+  | "myinvoisUuid"
+  | "myinvoisLongId"
+  | "einvoiceValidationUrl"
+  | "einvoiceSubmittedAt"
+  | "einvoiceValidatedAt"
+  | "einvoiceRejectionReason"
+> {
+  const status =
+    seed.einvoice ?? (seed.status === "DRAFT" ? "NOT_SUBMITTED" : "VALIDATED");
+
+  if (status === "NOT_SUBMITTED") {
+    return {
+      einvoiceStatus: "NOT_SUBMITTED",
+      einvoiceType: "01",
+      myinvoisUuid: null,
+      myinvoisLongId: null,
+      einvoiceValidationUrl: null,
+      einvoiceSubmittedAt: null,
+      einvoiceValidatedAt: null,
+      einvoiceRejectionReason: null,
+    };
+  }
+
+  const submittedAt = `${seed.issueDate}T03:15:00Z`;
+  const uuid = `MY${seed.number.replace(/\D/g, "")}LHDNUUID`;
+  const longId = `${uuid}-${seed.number.replace(/\D/g, "")}`;
+
+  const base = {
+    einvoiceType: "01",
+    myinvoisUuid: uuid,
+    einvoiceSubmittedAt: submittedAt,
+  };
+
+  if (status === "PENDING") {
+    return {
+      ...base,
+      einvoiceStatus: "PENDING",
+      myinvoisLongId: null,
+      einvoiceValidationUrl: null,
+      einvoiceValidatedAt: null,
+      einvoiceRejectionReason: null,
+    };
+  }
+
+  if (status === "REJECTED") {
+    return {
+      ...base,
+      einvoiceStatus: "REJECTED",
+      myinvoisLongId: null,
+      einvoiceValidationUrl: null,
+      einvoiceValidatedAt: null,
+      einvoiceRejectionReason:
+        "Buyer TIN could not be validated against LHDN records.",
+    };
+  }
+
+  // VALIDATED (and CANCELLED, which keeps its issued identifiers)
+  return {
+    ...base,
+    einvoiceStatus: status,
+    myinvoisLongId: longId,
+    einvoiceValidationUrl: `https://myinvois.hasil.gov.my/${uuid}/share/${longId}`,
+    einvoiceValidatedAt: `${seed.issueDate}T03:16:30Z`,
+    einvoiceRejectionReason: null,
+  };
+}
 
 function buildInvoice(seed: InvoiceSeed): Invoice {
   const lineItems = buildLineItems(seed.lines);
@@ -310,6 +399,7 @@ function buildInvoice(seed: InvoiceSeed): Invoice {
     paymentLinkExpiresAt: null,
     sentAt: seed.sentAt ?? (seed.status === "DRAFT" ? null : `${seed.issueDate}T03:00:00Z`),
     paidAt: seed.paidAt ?? (seed.status === "PAID" ? `${seed.dueDate}T05:00:00Z` : null),
+    ...buildEInvoice(seed),
     lineItems,
     createdAt: `${seed.issueDate}T02:00:00Z`,
     updatedAt: `${seed.issueDate}T02:00:00Z`,
@@ -359,6 +449,7 @@ export const mockInvoices: Invoice[] = [
     number: "INV-2026-0045",
     clientId: "c-4",
     status: "SENT",
+    einvoice: "PENDING", // submitted to LHDN, awaiting validation
     issueDate: "2026-06-01",
     dueDate: "2026-07-01",
     lines: [
@@ -371,6 +462,7 @@ export const mockInvoices: Invoice[] = [
     number: "INV-2026-0046",
     clientId: "c-5",
     status: "SENT",
+    einvoice: "REJECTED", // LHDN rejected — buyer TIN mismatch
     issueDate: "2026-06-05",
     dueDate: "2026-07-05",
     lines: [

@@ -257,6 +257,20 @@ export const useUpdateInvoice = () => useStubMutation(queryKeys.invoices);
 export const useSendInvoice = () => useStubMutation(queryKeys.invoices);
 export const useVoidInvoice = () => useStubMutation(queryKeys.invoices);
 export const useDuplicateInvoice = () => useStubMutation(queryKeys.invoices);
+// LHDN MyInvois — submit the e-invoice. Real POST to the backend; invalidates
+// both the list and the single invoice so its einvoiceStatus badge refreshes.
+export function useSubmitEInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => invoicesApi.submitEInvoice(id),
+    onSuccess: (_updated, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.invoice(id) });
+    },
+  });
+}
+// TODO(backend): cancel not implemented server-side yet.
+export const useCancelEInvoice = () => useStubMutation(queryKeys.invoices);
 export const useCreateClient = () => useStubMutation(queryKeys.clients);
 export const useUpdateClient = () => useStubMutation(queryKeys.clients);
 export const useRecordPayment = () => useStubMutation(queryKeys.payments);

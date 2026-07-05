@@ -4,6 +4,7 @@ import {
   Users,
   CreditCard,
   BarChart3,
+  Sparkles,
   Building2,
   ShieldCheck,
   UsersRound,
@@ -36,6 +37,7 @@ export const navGroups: NavGroup[] = [
       { title: "Clients", to: "/clients", icon: Users, matchPrefix: true },
       { title: "Payments", to: "/payments", icon: CreditCard },
       { title: "Reports", to: "/reports", icon: BarChart3 },
+      { title: "Assistant", to: "/assistant", icon: Sparkles },
     ],
   },
   {

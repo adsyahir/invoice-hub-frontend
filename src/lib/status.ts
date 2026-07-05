@@ -1,4 +1,9 @@
-import type { InvoiceStatus, PaymentStatus, TenantStatus } from "@/types";
+import type {
+  EInvoiceStatus,
+  InvoiceStatus,
+  PaymentStatus,
+  TenantStatus,
+} from "@/types";
 
 interface StatusStyle {
   label: string;
@@ -45,6 +50,35 @@ export const invoiceStatusStyle: Record<InvoiceStatus, StatusStyle> = {
     label: "Refunded",
     className: `${base} bg-violet-500/10 text-violet-700 dark:text-violet-300`,
     dot: "bg-violet-500",
+  },
+};
+
+/** LHDN MyInvois e-invoice status — restrained tints, matches the invoice badges. */
+export const einvoiceStatusStyle: Record<EInvoiceStatus, StatusStyle> = {
+  NOT_SUBMITTED: {
+    label: "Not submitted",
+    className: `${base} bg-muted text-muted-foreground`,
+    dot: "bg-muted-foreground",
+  },
+  PENDING: {
+    label: "Pending LHDN",
+    className: `${base} bg-amber-500/10 text-amber-700 dark:text-amber-300`,
+    dot: "bg-amber-500",
+  },
+  VALIDATED: {
+    label: "Validated",
+    className: `${base} bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`,
+    dot: "bg-emerald-500",
+  },
+  REJECTED: {
+    label: "Rejected",
+    className: `${base} bg-red-500/10 text-red-700 dark:text-red-300`,
+    dot: "bg-red-500",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    className: `${base} bg-muted text-muted-foreground line-through`,
+    dot: "bg-muted-foreground",
   },
 };
 
