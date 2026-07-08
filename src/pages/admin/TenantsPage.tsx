@@ -34,14 +34,19 @@ export default function TenantsPage() {
   const totalInvoices = tenants.reduce((s, t) => s + t.invoicesThisMonth, 0);
   const { page, setPage, pageItems, total } = usePagination(tenants, 10);
 
-  const setStatus = (name: string, status: "ACTIVE" | "SUSPENDED") =>
+  const setStatus = (
+    uuid: string,
+    name: string,
+    status: "ACTIVE" | "SUSPENDED",
+  ) =>
     updateStatus.mutate(
-      { name, status },
+      { uuid, status },
       {
         onSuccess: () =>
           toast.success(
             `${name} ${status === "ACTIVE" ? "reactivated" : "suspended"}`,
           ),
+        onError: () => toast.error(`Could not update ${name}`),
       },
     );
 
@@ -140,13 +145,15 @@ export default function TenantsPage() {
                             {t.status === "ACTIVE" ? (
                               <DropdownMenuItem
                                 variant="destructive"
-                                onClick={() => setStatus(t.name, "SUSPENDED")}
+                                onClick={() => setStatus(t.uuid, t.name, "SUSPENDED")}
                               >
                                 <Ban className="size-4" />
                                 Suspend
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem onClick={() => setStatus(t.name, "ACTIVE")}>
+                              <DropdownMenuItem
+                                onClick={() => setStatus(t.uuid, t.name, "ACTIVE")}
+                              >
                                 <CheckCircle2 className="size-4" />
                                 Reactivate
                               </DropdownMenuItem>

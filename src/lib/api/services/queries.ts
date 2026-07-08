@@ -16,7 +16,7 @@ import type {
   Invoice,
   InvoiceStatus,
   SubscriptionPlan,
-  Tenant,
+  TenantStatus,
 } from "@/types";
 import { mockDelay } from "./client";
 import * as clientsApi from "./clients";
@@ -24,12 +24,12 @@ import * as invoicesApi from "./invoices";
 import * as paymentsApi from "./payments";
 import * as reportsApi from "./reports";
 import * as notificationsApi from "./notifications";
+import * as tenantsApi from "./tenants";
 import * as teamsApi from "./team";
 
 import {
   mockInvoices,
   mockPlans,
-  mockTenants,
 } from "@/lib/mock/data";
 
 export const queryKeys = {
@@ -234,8 +234,7 @@ export function useTeamMembers() {
 export function useTenants() {
   return useQuery({
     queryKey: queryKeys.tenants,
-    // TODO(backend): GET /api/v1/admin/tenants  (super-admin only)
-    queryFn: async () => mockDelay<Tenant[]>([...mockTenants]),
+    queryFn: () => tenantsApi.list(),
   });
 }
 
@@ -331,4 +330,11 @@ export function useRefundPayment() {
   });
 }
 export const useInviteMember = () => useStubMutation(queryKeys.team);
-export const useUpdateTenantStatus = () => useStubMutation(queryKeys.tenants);
+export function useUpdateTenantStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { uuid: string; status: TenantStatus }) =>
+      tenantsApi.updateStatus(vars.uuid, vars.status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tenants }),
+  });
+}
