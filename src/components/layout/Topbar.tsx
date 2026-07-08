@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Bell, ChevronsUpDown, LogOut, Search, UserCog } from "lucide-react";
+import { ChevronsUpDown, LogOut, Search, UserCog } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { roleLabels } from "@/config/nav";
@@ -55,10 +56,7 @@ export function Topbar() {
 
       <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
-        <Button variant="ghost" size="icon-sm" aria-label="Notifications" className="relative">
-          <Bell className="size-4" />
-          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary" />
-        </Button>
+        <NotificationsBell />
 
         <Separator orientation="vertical" className="mx-1 h-5" />
 

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Markdown } from "@/components/common/Markdown";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   streamAssistantReply,
@@ -118,12 +119,12 @@ export default function AssistantPage() {
           <EmptyConversation onPick={send} disabled={streaming} />
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
-            {messages.map((m) => (
+            {messages.map((m, i) => (
               <MessageBubble
                 key={m.id}
                 message={m}
                 userInitial={user?.fullName?.[0]?.toUpperCase() ?? "U"}
-                streaming={streaming}
+                streaming={streaming && i === messages.length - 1}
               />
             ))}
           </div>
@@ -152,7 +153,7 @@ export default function AssistantPage() {
           </Button>
         </div>
         <p className="px-2 pb-1 pt-0.5 text-[11px] text-muted-foreground">
-          Preview — responses are generated from your workspace's demo data.
+          Powered by AI — it can make mistakes, so verify important details.
         </p>
       </div>
     </div>
@@ -174,8 +175,8 @@ function EmptyConversation({
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">How can I help?</h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          I have visibility into this workspace's invoices, clients, payments and
-          LHDN e-invoice status. Pick a starter or ask your own question.
+          I can read this workspace's invoices, receivables and MyInvois status to
+          answer with your real figures. Pick a starter or ask your own question.
         </p>
       </div>
       <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
@@ -220,21 +221,23 @@ function MessageBubble({
       </div>
       <div
         className={cn(
-          "min-w-0 max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
+          "min-w-0 rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+            ? "max-w-[85%] bg-primary text-primary-foreground"
+            : "w-full max-w-[calc(100%-2.75rem)] bg-muted text-foreground",
         )}
       >
         {isEmptyAssistant ? (
           <ThinkingDots />
+        ) : isUser ? (
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : (
-          <p className="whitespace-pre-wrap break-words">
-            {message.content}
-            {!isUser && streaming && (
+          <>
+            <Markdown content={message.content} />
+            {streaming && (
               <span className="ml-0.5 inline-block h-4 w-1.5 -translate-y-px animate-pulse rounded-sm bg-current align-middle" />
             )}
-          </p>
+          </>
         )}
       </div>
     </div>

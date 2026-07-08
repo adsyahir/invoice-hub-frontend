@@ -241,6 +241,33 @@ export interface AgingBucket {
 }
 
 // ---------------------------------------------------------------------------
+// In-app notifications (topbar bell)
+// ---------------------------------------------------------------------------
+
+export type NotificationType =
+  | "PAYMENT_RECEIVED"
+  | "INVOICE_SENT"
+  | "INVOICE_PAID"
+  | "INVOICE_OVERDUE"
+  | "PAYMENT_REFUNDED"
+  | "EINVOICE_VALIDATED";
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType | string;
+  title: string;
+  message: string;
+  link?: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationFeed {
+  items: NotificationItem[];
+  unreadCount: number;
+}
+
+// ---------------------------------------------------------------------------
 // Generic envelope (matches the doc's standard response format, section 4.1)
 // ---------------------------------------------------------------------------
 

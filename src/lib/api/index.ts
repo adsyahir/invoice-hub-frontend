@@ -15,6 +15,7 @@ import * as invoices from "./services/invoices";
 import * as clients from "./services/clients";
 import * as payments from "./services/payments";
 import * as reports from "./services/reports";
+import * as notifications from "./services/notifications";
 import * as team from "./services/team";
 import * as tenants from "./services/tenants";
 import * as roles from "./services/roles";
@@ -28,6 +29,7 @@ export const api = {
   clients,
   payments,
   reports,
+  notifications,
   team,
   tenants,
   roles,

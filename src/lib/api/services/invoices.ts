@@ -3,7 +3,18 @@ import type {
   CurrencyCode,
   Invoice,
   InvoiceStatus,
+  Payment,
 } from "@/types";
+
+/** Lightweight audit-trail entry as returned by GET /invoices/{id}/audit-log. */
+export interface InvoiceAuditEntry {
+  id: number;
+  entityType: string;
+  action: string;
+  performedByName?: string;
+  summary?: string;
+  createdAt: string;
+}
 
 export interface InvoiceListParams {
   q?: string;
@@ -65,16 +76,37 @@ export const create = (payload: InvoiceInput) =>
 //     .put<Invoice>(`/invoices/${id}`, payload)
 //     .then((r) => r.data);
 
-// export const send = (id: string) =>
-//   instance.post<Invoice>(`/invoices/${id}/send`).then((r) => r.data);
+/** Send the invoice to its client (email + pay link); DRAFT -> SENT. */
+export const send = (id: string) =>
+  instance.post<Invoice>(`/invoices/${id}/send`).then((r) => r.data);
 
-// export const voidInvoice = (id: string) =>
-//   instance.post<Invoice>(`/invoices/${id}/void`).then((r) => r.data);
+/** Void / cancel the invoice. */
+export const voidInvoice = (id: string) =>
+  instance.post<Invoice>(`/invoices/${id}/void`).then((r) => r.data);
 
-// export const duplicate = (id: string) =>
-//   instance
-//     .post<Invoice>(`/invoices/${id}/duplicate`)
-//     .then((r) => r.data);
+/** Duplicate the invoice as a fresh DRAFT; returns the new invoice. */
+export const duplicate = (id: string) =>
+  instance
+    .post<Invoice>(`/invoices/${id}/duplicate`)
+    .then((r) => r.data);
+
+/** Payments recorded against this invoice. */
+export const getPayments = (id: string) =>
+  instance
+    .get<Payment[]>(`/payments/invoice/${id}`)
+    .then((r) => r.data);
+
+/** Audit trail for this invoice (newest first). */
+export const getAuditLog = (id: string) =>
+  instance
+    .get<InvoiceAuditEntry[]>(`/invoices/${id}/audit-log`)
+    .then((r) => r.data);
+
+/** The invoice rendered as a PDF Blob (for download / preview). */
+export const getPdf = (id: string) =>
+  instance
+    .get(`/invoices/${id}/pdf`, { responseType: "blob" })
+    .then((r) => r.data as Blob);
 
 // --- LHDN MyInvois e-invoicing (Malaysia) ---
 

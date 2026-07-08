@@ -26,6 +26,7 @@ import PaymentsPage from "@/pages/payments/PaymentsPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
 import AssistantPage from "@/pages/assistant/AssistantPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import EinvoicePage from "@/pages/settings/EinvoicePage";
 import TeamPage from "@/pages/settings/TeamPage";
 import BillingPage from "@/pages/settings/BillingPage";
 import TenantsPage from "@/pages/admin/TenantsPage";
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
             element: <RequireRole allow={["TENANT_ADMIN", "SUPER_ADMIN"]} />,
             children: [
               { path: "/settings", element: <SettingsPage /> },
+              { path: "/settings/einvoice", element: <EinvoicePage /> },
               { path: "/settings/team", element: <TeamPage /> },
               { path: "/settings/billing", element: <BillingPage /> },
             ],

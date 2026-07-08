@@ -12,30 +12,23 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
-  AgingBucket,
-  AuditLog,
   Client,
-  DashboardStats,
   Invoice,
   InvoiceStatus,
-  Payment,
-  RevenuePoint,
   SubscriptionPlan,
   Tenant,
 } from "@/types";
 import { mockDelay } from "./client";
 import * as clientsApi from "./clients";
 import * as invoicesApi from "./invoices";
+import * as paymentsApi from "./payments";
+import * as reportsApi from "./reports";
+import * as notificationsApi from "./notifications";
 import * as teamsApi from "./team";
 
 import {
-  auditLogForInvoice,
-  mockAgingBuckets,
-  mockDashboardStats,
   mockInvoices,
-  mockPayments,
   mockPlans,
-  mockRevenueSeries,
   mockTenants,
 } from "@/lib/mock/data";
 
@@ -52,6 +45,7 @@ export const queryKeys = {
   team: ["team"] as const,
   tenants: ["tenants"] as const,
   plans: ["plans"] as const,
+  notifications: ["notifications"] as const,
 };
 
 // ---- Invoices ----
@@ -99,11 +93,7 @@ export function useInvoiceAuditLog(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.invoiceAudit(id ?? ""),
     enabled: !!id,
-    queryFn: async () => {
-      // TODO(backend): GET /api/v1/invoices/{id}/audit-log
-      const invoice = mockInvoices.find((i) => i.id === id);
-      return mockDelay<AuditLog[]>(invoice ? auditLogForInvoice(invoice) : []);
-    },
+    queryFn: () => invoicesApi.getAuditLog(id!),
   });
 }
 
@@ -111,10 +101,7 @@ export function useInvoicePayments(invoiceId: string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.payments, "invoice", invoiceId],
     enabled: !!invoiceId,
-    queryFn: async () =>
-      mockDelay<Payment[]>(
-        mockPayments.filter((p) => p.invoiceId === invoiceId),
-      ),
+    queryFn: () => invoicesApi.getPayments(invoiceId!),
   });
 }
 
@@ -178,8 +165,7 @@ export function useClient(id: string | undefined) {
 export function usePayments() {
   return useQuery({
     queryKey: queryKeys.payments,
-    // TODO(backend): GET /api/v1/payments
-    queryFn: async () => mockDelay<Payment[]>([...mockPayments]),
+    queryFn: () => paymentsApi.list(),
   });
 }
 
@@ -188,23 +174,51 @@ export function usePayments() {
 export function useDashboardStats() {
   return useQuery({
     queryKey: queryKeys.dashboard,
-    // TODO(backend): GET /api/v1/reports/dashboard
-    queryFn: async () => mockDelay<DashboardStats>(mockDashboardStats),
+    queryFn: () => reportsApi.dashboard(),
   });
 }
 
 export function useRevenueSeries() {
   return useQuery({
     queryKey: queryKeys.revenue,
-    queryFn: async () => mockDelay<RevenuePoint[]>(mockRevenueSeries),
+    queryFn: () => reportsApi.revenue(),
   });
 }
 
 export function useAgingReport() {
   return useQuery({
     queryKey: queryKeys.aging,
-    // TODO(backend): GET /api/v1/reports/aging
-    queryFn: async () => mockDelay<AgingBucket[]>(mockAgingBuckets),
+    queryFn: () => reportsApi.aging(),
+  });
+}
+
+// ---- Notifications (topbar bell) ----
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: queryKeys.notifications,
+    queryFn: () => notificationsApi.feed(),
+    // Light polling so the bell stays current without a websocket.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationsApi.markRead(id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.notifications }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 }
 
@@ -254,9 +268,24 @@ function useStubMutation<TVars = unknown>(invalidate?: readonly unknown[]) {
 
 export const useCreateInvoice = () => useStubMutation(queryKeys.invoices);
 export const useUpdateInvoice = () => useStubMutation(queryKeys.invoices);
-export const useSendInvoice = () => useStubMutation(queryKeys.invoices);
-export const useVoidInvoice = () => useStubMutation(queryKeys.invoices);
-export const useDuplicateInvoice = () => useStubMutation(queryKeys.invoices);
+
+/** Invalidate both the invoice list and the single invoice after a lifecycle action. */
+function useInvoiceActionMutation(fn: (id: string) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fn(id),
+    onSuccess: (_result, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.invoice(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}
+
+export const useSendInvoice = () => useInvoiceActionMutation(invoicesApi.send);
+export const useVoidInvoice = () => useInvoiceActionMutation(invoicesApi.voidInvoice);
+export const useDuplicateInvoice = () =>
+  useInvoiceActionMutation(invoicesApi.duplicate);
 // LHDN MyInvois — submit the e-invoice. Real POST to the backend; invalidates
 // both the list and the single invoice so its einvoiceStatus badge refreshes.
 export function useSubmitEInvoice() {
@@ -273,7 +302,33 @@ export function useSubmitEInvoice() {
 export const useCancelEInvoice = () => useStubMutation(queryKeys.invoices);
 export const useCreateClient = () => useStubMutation(queryKeys.clients);
 export const useUpdateClient = () => useStubMutation(queryKeys.clients);
-export const useRecordPayment = () => useStubMutation(queryKeys.payments);
-export const useRefundPayment = () => useStubMutation(queryKeys.payments);
+export function useRecordPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: paymentsApi.ManualPaymentInput) =>
+      paymentsApi.recordManual(payload),
+    onSuccess: (_result, vars) => {
+      qc.invalidateQueries({ queryKey: queryKeys.payments });
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.invoice(vars.invoiceId) });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}
+
+export function useRefundPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    // RefundDialog passes { paymentId, amount, reason }; the backend refunds the
+    // payment in full, so amount/reason are advisory only.
+    mutationFn: (vars: { paymentId: string; amount?: string | number; reason?: string }) =>
+      paymentsApi.refund(vars.paymentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.payments });
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}
 export const useInviteMember = () => useStubMutation(queryKeys.team);
 export const useUpdateTenantStatus = () => useStubMutation(queryKeys.tenants);

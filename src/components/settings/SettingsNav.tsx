@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { to: "/settings", label: "Organization", end: true },
+  { to: "/settings/einvoice", label: "e-Invoicing", end: false },
   { to: "/settings/team", label: "Team", end: false },
   { to: "/settings/billing", label: "Billing", end: false },
 ];
