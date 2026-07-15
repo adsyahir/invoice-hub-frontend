@@ -78,6 +78,10 @@ export function useInvoices(filters: InvoiceFilters = {}) {
       rows.sort((a, b) => b.issueDate.localeCompare(a.issueDate));
       return mockDelay(rows);
     },
+    // Same reason as useInvoice: keep refreshing only while some invoice is waiting on
+    // LHDN, so a PENDING badge in the table resolves itself once the consumer lands.
+    refetchInterval: (query) =>
+      query.state.data?.some((i) => i.einvoiceStatus === "PENDING") ? 3000 : false,
   });
 }
 
@@ -86,6 +90,12 @@ export function useInvoice(id: string | undefined) {
     queryKey: queryKeys.invoice(id ?? ""),
     enabled: !!id,
     queryFn: () => invoicesApi.get(id!),
+    // MyInvois submission is asynchronous: POST /submit-einvoice returns PENDING, and a
+    // Kafka consumer flips the invoice to VALIDATED (or REJECTED) once LHDN answers. Poll
+    // while that is in flight so the badge updates on its own, then stop — no point
+    // polling an invoice whose e-invoice status is settled.
+    refetchInterval: (query) =>
+      query.state.data?.einvoiceStatus === "PENDING" ? 3000 : false,
   });
 }
 
