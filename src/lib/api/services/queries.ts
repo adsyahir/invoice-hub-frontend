@@ -24,6 +24,7 @@ import * as invoicesApi from "./invoices";
 import * as paymentsApi from "./payments";
 import * as reportsApi from "./reports";
 import * as notificationsApi from "./notifications";
+import * as searchApi from "./search";
 import * as tenantsApi from "./tenants";
 import * as teamsApi from "./team";
 
@@ -46,6 +47,7 @@ export const queryKeys = {
   tenants: ["tenants"] as const,
   plans: ["plans"] as const,
   notifications: ["notifications"] as const,
+  search: (q: string) => ["search", q] as const,
 };
 
 // ---- Invoices ----
@@ -229,6 +231,21 @@ export function useMarkAllNotificationsRead() {
     mutationFn: () => notificationsApi.markAllRead(),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.notifications }),
+  });
+}
+
+// ---- Global search (topbar typeahead, Elasticsearch-backed) ----
+
+export function useGlobalSearch(q: string) {
+  const query = q.trim();
+  return useQuery({
+    queryKey: queryKeys.search(query),
+    queryFn: () => searchApi.global(query),
+    // Only fire with something worth searching; the component debounces `q`.
+    enabled: query.length >= 2,
+    // Typing back and forth reuses the last few results instead of re-hitting ES.
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 }
 

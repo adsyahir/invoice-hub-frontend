@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronsUpDown, LogOut, Search, UserCog } from "lucide-react";
+import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { roleLabels } from "@/config/nav";
@@ -46,13 +46,7 @@ export function Topbar() {
       <SidebarTrigger />
       <Separator orientation="vertical" className="mr-1 h-5" />
 
-      <div className="relative hidden w-full max-w-xs sm:block">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search invoices, clients…"
-          className="h-8 pl-8"
-        />
-      </div>
+      <GlobalSearch />
 
       <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
