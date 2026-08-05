@@ -13,12 +13,10 @@ import {
 } from "@tanstack/react-query";
 import type {
   Client,
-  Invoice,
   InvoiceStatus,
   SubscriptionPlan,
   TenantStatus,
 } from "@/types";
-import { mockDelay } from "./client";
 import * as clientsApi from "./clients";
 import * as invoicesApi from "./invoices";
 import * as paymentsApi from "./payments";
@@ -27,11 +25,15 @@ import * as notificationsApi from "./notifications";
 import * as searchApi from "./search";
 import * as tenantsApi from "./tenants";
 import * as teamsApi from "./team";
+import * as payoutsApi from "./payouts";
+import * as publicInvoicesApi from "./publicInvoices";
 
-import {
-  mockInvoices,
-  mockPlans,
-} from "@/lib/mock/data";
+/** Fake latency for the hooks still on mock data. Delete with the last mock queryFn. */
+function mockDelay<T>(value: T, ms = 450): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+}
+
+import { mockPlans } from "@/lib/mock/data";
 
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
@@ -47,6 +49,7 @@ export const queryKeys = {
   tenants: ["tenants"] as const,
   plans: ["plans"] as const,
   notifications: ["notifications"] as const,
+  payouts: ["payouts"] as const,
   search: (q: string) => ["search", q] as const,
 };
 
@@ -117,19 +120,34 @@ export function useInvoicePayments(invoiceId: string | undefined) {
   });
 }
 
-/** Public, unauthenticated invoice lookup by payment-link token. */
+/**
+ * Public, unauthenticated invoice lookup by payment-link token.
+ *
+ * No retry: the common failures here are "expired" and "no such token", and retrying a
+ * 404 just delays the message the payer needs to see.
+ */
 export function usePublicInvoice(token: string | undefined) {
   return useQuery({
     queryKey: ["public-invoice", token],
     enabled: !!token,
     retry: false,
-    queryFn: async () => {
-      // TODO(backend): GET /pay/{token}  (no auth; resolves the tokenized link)
-      if (token === "expired") throw new Error("EXPIRED");
-      const invoice =
-        mockInvoices.find((i) => i.status === "SENT" && i.paymentLinkToken) ??
-        mockInvoices[3];
-      return mockDelay<Invoice>(invoice);
+    queryFn: () => publicInvoicesApi.get(token!),
+  });
+}
+
+/**
+ * Hands the payer to Stripe Checkout.
+ *
+ * A full-page redirect for the same reason as onboarding — Checkout is a hosted flow that
+ * can bounce through 3-D Secure or a bank's FPX page, and popups get blocked. The payment
+ * is confirmed by webhook, not by the payer landing back on the success URL.
+ */
+export function useStartCheckout(token: string | undefined) {
+  return useMutation({
+    mutationFn: async () => {
+      const url = await publicInvoicesApi.createCheckout(token!);
+      window.location.href = url;
+      return url;
     },
   });
 }
@@ -269,6 +287,57 @@ export function usePlans() {
   return useQuery({
     queryKey: queryKeys.plans,
     queryFn: async () => mockDelay<SubscriptionPlan[]>(mockPlans),
+  });
+}
+
+// ---- Payouts (Stripe Connect onboarding) ----
+
+/**
+ * The tenant's Stripe Connect state. Polls while onboarding is unfinished — ENABLED is
+ * driven by Stripe's webhook, not by anything this browser did — and stops once charges
+ * are on.
+ *
+ * @param enabled pass false to skip the request entirely (e.g. non-admin users).
+ */
+export function usePayoutsAccount(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.payouts,
+    queryFn: () => payoutsApi.get(),
+    enabled,
+    refetchInterval: (query) =>
+      query.state.data && query.state.data.status !== "ENABLED" ? 3000 : false,
+    // Onboarding finishes in another tab (Stripe's), so re-check on return to ours.
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Mints an AccountLink and hands the browser to Stripe. A full-page redirect, not a
+ * popup — onboarding can bounce through identity verification, and popups get blocked.
+ */
+export function useStartPayoutsOnboarding() {
+  return useMutation({
+    mutationFn: async () => {
+      const url = await payoutsApi.createOnboardingLink({
+        returnUrl: `${window.location.origin}/onboarding/payouts/return`,
+        // Hit when the link expired unopened; that page mints a fresh one on arrival.
+        refreshUrl: `${window.location.origin}/onboarding/payouts`,
+      });
+      window.location.href = url;
+      // The redirect tears the page down, so the button just stays pending.
+      return url;
+    },
+  });
+}
+
+/** One-time login link to the tenant's Stripe Express dashboard. */
+export function useOpenPayoutsDashboard() {
+  return useMutation({
+    mutationFn: async () => {
+      const url = await payoutsApi.createDashboardLink();
+      window.location.href = url;
+      return url;
+    },
   });
 }
 

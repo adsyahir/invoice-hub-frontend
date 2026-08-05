@@ -74,6 +74,9 @@ export interface Tenant {
   sstNumber?: string;        // SST registration number, if SST-registered
   businessRegNo?: string;    // SSM business registration number (BRN)
   msicCode?: string;         // Malaysia Standard Industrial Classification code
+  // Set right after registration, long before the tenant can take money — read
+  // PayoutsAccount.status for that, never the presence of this id.
+  stripeAccountId?: string;
   maxUsers: number;
   maxInvoicesPerMonth: number;
   // Derived usage stats (super-admin view)
@@ -81,6 +84,63 @@ export interface Tenant {
   invoicesThisMonth: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Where the tenant is in Stripe Connect onboarding. Not a boolean: the account exists
+ * from registration, but charges only turn on once Stripe verifies the KYC details.
+ */
+export type PayoutsStatus =
+  /** Express account created, tenant has not opened Stripe's hosted form yet. */
+  | "NOT_STARTED"
+  /** Form submitted, Stripe still verifying — or fields left incomplete. */
+  | "IN_PROGRESS"
+  /** charges_enabled: true. The tenant can be paid. */
+  | "ENABLED"
+  /** Stripe disabled the account and is asking for more information. */
+  | "RESTRICTED";
+
+/** The tenant's Stripe connected account, as the backend reports it. */
+export interface PayoutsAccount {
+  status: PayoutsStatus;
+  stripeAccountId?: string;
+  /** The signal that matters: Stripe will accept charges on the tenant's behalf. */
+  chargesEnabled: boolean;
+  /** Money can actually move out to their bank. Can lag chargesEnabled. */
+  payoutsEnabled: boolean;
+  /** They finished the hosted form (says nothing about verification passing). */
+  detailsSubmitted: boolean;
+  /** Stripe's `requirements.currently_due`, humanized by the backend. */
+  requirements?: string[];
+  /** Stripe's `requirements.disabled_reason`, when RESTRICTED. */
+  disabledReason?: string;
+}
+
+/**
+ * What a payer sees on the public /pay/{token} page. Deliberately narrower than
+ * Invoice — no ids, internal notes or e-invoice internals cross this boundary.
+ */
+export interface PublicInvoice {
+  invoiceNumber: string;
+  organizationName: string;
+  clientName: string;
+  currency: CurrencyCode;
+  totalAmount: number;
+  amountPaid: number;
+  amountDue: number;
+  issueDate: string;
+  dueDate: string;
+  status: InvoiceStatus;
+  /** False once the invoice is void, paid or the link has expired. */
+  payable: boolean;
+  lineItems: PublicInvoiceLine[];
+}
+
+export interface PublicInvoiceLine {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
 }
 
 export interface SubscriptionPlan {

@@ -4,12 +4,14 @@ import {
   einvoiceStatusStyle,
   invoiceStatusStyle,
   paymentStatusStyle,
+  payoutsStatusStyle,
   tenantStatusStyle,
 } from "@/lib/status";
 import type {
   EInvoiceStatus,
   InvoiceStatus,
   PaymentStatus,
+  PayoutsStatus,
   TenantStatus,
 } from "@/types";
 
@@ -44,6 +46,22 @@ export function EInvoiceStatusBadge({
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const s = paymentStatusStyle[status];
   return <Badge className={s.className}>{s.label}</Badge>;
+}
+
+export function PayoutsStatusBadge({
+  status,
+  className,
+}: {
+  status?: PayoutsStatus;
+  className?: string;
+}) {
+  const s = payoutsStatusStyle[status ?? "NOT_STARTED"];
+  return (
+    <Badge className={cn(s.className, className)}>
+      <span className={cn("mr-1 size-1.5 rounded-full", s.dot)} />
+      {s.label}
+    </Badge>
+  );
 }
 
 export function TenantStatusBadge({ status }: { status: TenantStatus }) {

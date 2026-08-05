@@ -1,13 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
-import {
-  CheckCircle2,
-  CreditCard,
-  Landmark,
-  Loader2,
-  LinkIcon,
-  Smartphone,
-} from "lucide-react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { CheckCircle2, CreditCard, Landmark, LinkIcon, Loader2, ShieldCheck } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,39 +7,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FormRow } from "@/components/common/FormRow";
-import { SelectField } from "@/components/common/SelectField";
 import { EmptyState } from "@/components/common/EmptyState";
-import { usePublicInvoice } from "@/lib/api/services/queries";
+import { usePublicInvoice, useStartCheckout } from "@/lib/api/services/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 
-const banks = [
-  { value: "maybank2u", label: "Maybank2U" },
-  { value: "cimb", label: "CIMB Clicks" },
-  { value: "publicbank", label: "Public Bank" },
-  { value: "rhb", label: "RHB Now" },
-  { value: "hongleong", label: "Hong Leong Connect" },
-];
-
+/**
+ * The page an emailed payment link opens.
+ *
+ * No card fields of our own: collecting a PAN would drag InvoiceHub into PCI scope for no
+ * benefit. The Pay button mints a Stripe Checkout session and redirects; Stripe collects
+ * the card or FPX details and tells us the outcome by webhook.
+ *
+ * Note what the success state does NOT claim. Landing back here only means the payer
+ * finished Stripe's flow — the money is confirmed by the webhook, and FPX in particular
+ * can still be pending. So the copy says "received", and the invoice's real status comes
+ * from the refetched server data rather than from `?paid=1`.
+ */
 export default function PaymentPage() {
   const { token } = useParams();
+  const [params] = useSearchParams();
   const { data: invoice, isLoading, isError } = usePublicInvoice(token);
-  const [status, setStatus] = useState<"idle" | "processing" | "done">("idle");
+  const checkout = useStartCheckout(token);
 
-  const pay = () => {
-    setStatus("processing");
-    setTimeout(() => setStatus("done"), 1400);
-  };
+  const justPaid = params.get("paid") === "1";
 
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <Skeleton className="h-[480px] w-full rounded-xl" />
+        <Skeleton className="h-[420px] w-full rounded-xl" />
       </div>
     );
   }
@@ -57,77 +48,56 @@ export default function PaymentPage() {
       <div className="mx-auto max-w-md px-4 py-16">
         <EmptyState
           icon={LinkIcon}
-          title="This payment link has expired"
-          description="Payment links are valid for 7 days. Please contact the sender for a new link."
+          title="This payment link isn’t valid"
+          description="It may have expired or already been used. Please contact the sender for a new link."
         />
       </div>
     );
   }
 
-  if (status === "done") {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-          <CheckCircle2 className="size-6" />
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">Payment successful</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You paid {formatCurrency(invoice.amountDue, invoice.currency)} for{" "}
-          {invoice.invoiceNumber}. A receipt has been emailed to you.
-        </p>
-        <Card className="mt-6 text-left">
-          <CardContent className="flex flex-col gap-2 pt-6 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Invoice</span>
-              <span className="font-medium">{invoice.invoiceNumber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount paid</span>
-              <span className="font-medium tabular-nums">
-                {formatCurrency(invoice.amountDue, invoice.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Reference</span>
-              <span className="font-medium">PAY-{invoice.invoiceNumber.slice(-4)}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const settled = invoice.amountDue <= 0;
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6 px-4 py-10 md:grid-cols-5">
       {/* Invoice summary */}
       <Card className="md:col-span-2">
         <CardHeader>
-          <CardDescription>Invoice from Novosoft Sdn Bhd</CardDescription>
+          <CardDescription>Invoice from {invoice.organizationName}</CardDescription>
           <CardTitle>{invoice.invoiceNumber}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <div>
             <p className="text-muted-foreground">Billed to</p>
-            <p className="font-medium">{invoice.client?.name}</p>
+            <p className="font-medium">{invoice.clientName}</p>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Due date</span>
             <span>{formatDate(invoice.dueDate)}</span>
           </div>
+
           <Separator />
+
           <div className="flex flex-col gap-2">
-            {invoice.lineItems.map((li) => (
-              <div key={li.id} className="flex justify-between gap-2">
-                <span className="text-muted-foreground line-clamp-1">
-                  {li.description}
-                </span>
+            {invoice.lineItems.map((li, i) => (
+              <div key={`${li.description}-${i}`} className="flex justify-between gap-2">
+                <span className="line-clamp-1 text-muted-foreground">{li.description}</span>
                 <span className="tabular-nums">
                   {formatCurrency(li.lineTotal, invoice.currency)}
                 </span>
               </div>
             ))}
           </div>
+
           <Separator />
+
+          {invoice.amountPaid > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Already paid</span>
+              <span className="tabular-nums">
+                {formatCurrency(invoice.amountPaid, invoice.currency)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-semibold">
             <span>Amount due</span>
             <span className="tabular-nums">
@@ -137,79 +107,87 @@ export default function PaymentPage() {
         </CardContent>
       </Card>
 
-      {/* Payment methods */}
+      {/* Payment */}
       <Card className="md:col-span-3">
-        <CardHeader>
-          <CardTitle>Choose how to pay</CardTitle>
-          <CardDescription>Secure payment powered by InvoiceHub.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="card">
-            <TabsList className="w-full">
-              <TabsTrigger value="card" className="flex-1">
-                <CreditCard className="size-4" /> Card
-              </TabsTrigger>
-              <TabsTrigger value="fpx" className="flex-1">
-                <Landmark className="size-4" /> FPX
-              </TabsTrigger>
-              <TabsTrigger value="ewallet" className="flex-1">
-                <Smartphone className="size-4" /> E-wallet
-              </TabsTrigger>
-            </TabsList>
+        {settled ? (
+          <>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
+                This invoice is paid
+              </CardTitle>
+              <CardDescription>
+                Nothing left to pay on {invoice.invoiceNumber}. A receipt has been emailed to you.
+              </CardDescription>
+            </CardHeader>
+          </>
+        ) : (
+          <>
+            <CardHeader>
+              <CardTitle>Pay this invoice</CardTitle>
+              <CardDescription>
+                You’ll be taken to Stripe to complete the payment. {invoice.organizationName}{" "}
+                never sees your card details, and neither do we.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {justPaid && (
+                // They came back from Stripe but the balance hasn't cleared yet — either the
+                // webhook is still in flight or it's an async method like FPX.
+                <Alert>
+                  <AlertTitle>Payment received — confirming</AlertTitle>
+                  <AlertDescription>
+                    This can take a moment to settle. You’ll get an emailed receipt once it’s
+                    confirmed; no need to pay again.
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            <TabsContent value="card" className="flex flex-col gap-4 pt-4">
-              <FormRow label="Card number" htmlFor="card-number">
-                <Input id="card-number" placeholder="4242 4242 4242 4242" inputMode="numeric" />
-              </FormRow>
-              <div className="grid grid-cols-2 gap-4">
-                <FormRow label="Expiry" htmlFor="card-exp">
-                  <Input id="card-exp" placeholder="MM / YY" />
-                </FormRow>
-                <FormRow label="CVC" htmlFor="card-cvc">
-                  <Input id="card-cvc" placeholder="123" inputMode="numeric" />
-                </FormRow>
-              </div>
-              <FormRow label="Name on card" htmlFor="card-name">
-                <Input id="card-name" placeholder="Full name" />
-              </FormRow>
-            </TabsContent>
+              {checkout.isError && (
+                <Alert variant="destructive">
+                  <AlertTitle>Couldn’t start the payment</AlertTitle>
+                  <AlertDescription>
+                    Please try again in a moment, or contact {invoice.organizationName} to pay
+                    another way.
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            <TabsContent value="fpx" className="flex flex-col gap-4 pt-4">
-              <FormRow label="Select your bank" htmlFor="fpx-bank">
-                <SelectField id="fpx-bank" options={banks} placeholder="Choose a bank" />
-              </FormRow>
-              <p className="text-sm text-muted-foreground">
-                You’ll be redirected to your bank to authorise the payment.
-              </p>
-            </TabsContent>
+              {!invoice.payable ? (
+                <p className="text-sm text-muted-foreground">
+                  This invoice can no longer be paid online. Please contact{" "}
+                  {invoice.organizationName}.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <CreditCard className="size-4" /> Card
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Landmark className="size-4" /> FPX
+                    </span>
+                  </div>
 
-            <TabsContent value="ewallet" className="flex flex-col gap-3 pt-4">
-              <div className="grid grid-cols-3 gap-2">
-                {["Touch ’n Go", "GrabPay", "Boost"].map((w) => (
-                  <button
-                    key={w}
-                    className="rounded-lg border p-3 text-sm font-medium hover:border-primary hover:bg-muted"
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    disabled={checkout.isPending}
+                    onClick={() => checkout.mutate()}
                   >
-                    {w}
-                  </button>
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
+                    {checkout.isPending && <Loader2 className="size-4 animate-spin" />}
+                    Pay {formatCurrency(invoice.amountDue, invoice.currency)}
+                  </Button>
 
-          <Button
-            className="mt-6 w-full"
-            size="lg"
-            disabled={status === "processing"}
-            onClick={pay}
-          >
-            {status === "processing" && <Loader2 className="size-4 animate-spin" />}
-            Pay {formatCurrency(invoice.amountDue, invoice.currency)}
-          </Button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Payments are encrypted and processed securely.
-          </p>
-        </CardContent>
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <ShieldCheck className="size-3.5" />
+                    Secured by Stripe
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </>
+        )}
       </Card>
     </div>
   );

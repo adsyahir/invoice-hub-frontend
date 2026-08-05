@@ -22,6 +22,7 @@ import * as roles from "./services/roles";
 import * as users from "./services/users";
 import * as geo from "./services/geo";
 import * as settings from "./services/settings";
+import * as payouts from "./services/payouts";
 
 export const api = {
   auth,
@@ -36,6 +37,7 @@ export const api = {
   users,
   geo,
   settings,
+  payouts,
 };
 
 export type Api = typeof api;

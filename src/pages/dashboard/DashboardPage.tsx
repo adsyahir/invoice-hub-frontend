@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { InvoiceStatusBadge } from "@/components/common/StatusBadge";
+import { PayoutsSetupAlert } from "@/components/payouts/PayoutsSetupAlert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,6 +53,9 @@ export default function DashboardPage() {
           <Button render={<Link to="/invoices/new" />}>New invoice</Button>
         }
       />
+
+      {/* Renders nothing once Stripe onboarding is complete. */}
+      <PayoutsSetupAlert />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.isLoading || !stats.data ? (

@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { RequireAuth } from "@/components/layout/RequireAuth";
 import { RequireGuest } from "@/components/layout/RequireGuest";
+import { OnboardingLayout } from "@/components/layout/OnboardingLayout";
 import { RequireRole } from "@/components/layout/RequireRole";
 import { RequirePermission } from "@/components/layout/RequirePermission";
 
@@ -25,7 +26,10 @@ import ClientDetailPage from "@/pages/clients/ClientDetailPage";
 import PaymentsPage from "@/pages/payments/PaymentsPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
 import AssistantPage from "@/pages/assistant/AssistantPage";
+import PayoutsOnboardingPage from "@/pages/onboarding/PayoutsOnboardingPage";
+import PayoutsReturnPage from "@/pages/onboarding/PayoutsReturnPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import PayoutsPage from "@/pages/settings/PayoutsPage";
 import EinvoicePage from "@/pages/settings/EinvoicePage";
 import TeamPage from "@/pages/settings/TeamPage";
 import BillingPage from "@/pages/settings/BillingPage";
@@ -60,6 +64,15 @@ export const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       {
+        // Post-registration setup: signed in, but outside the app shell. Stripe
+        // redirects back into /onboarding/payouts/return.
+        element: <OnboardingLayout />,
+        children: [
+          { path: "/onboarding/payouts", element: <PayoutsOnboardingPage /> },
+          { path: "/onboarding/payouts/return", element: <PayoutsReturnPage /> },
+        ],
+      },
+      {
         element: <AppLayout />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
@@ -80,6 +93,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "/settings", element: <SettingsPage /> },
               { path: "/settings/einvoice", element: <EinvoicePage /> },
+              { path: "/settings/payouts", element: <PayoutsPage /> },
               { path: "/settings/team", element: <TeamPage /> },
               { path: "/settings/billing", element: <BillingPage /> },
             ],

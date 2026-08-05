@@ -2,6 +2,7 @@ import type {
   EInvoiceStatus,
   InvoiceStatus,
   PaymentStatus,
+  PayoutsStatus,
   TenantStatus,
 } from "@/types";
 
@@ -120,6 +121,30 @@ export const tenantStatusStyle: Record<TenantStatus, StatusStyle> = {
     label: "Cancelled",
     className: `${base} bg-muted text-muted-foreground`,
     dot: "bg-muted-foreground",
+  },
+};
+
+/** Stripe Connect onboarding state. */
+export const payoutsStatusStyle: Record<PayoutsStatus, StatusStyle> = {
+  NOT_STARTED: {
+    label: "Setup required",
+    className: `${base} bg-muted text-muted-foreground`,
+    dot: "bg-muted-foreground",
+  },
+  IN_PROGRESS: {
+    label: "Pending verification",
+    className: `${base} bg-amber-500/10 text-amber-700 dark:text-amber-300`,
+    dot: "bg-amber-500",
+  },
+  ENABLED: {
+    label: "Payments enabled",
+    className: `${base} bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`,
+    dot: "bg-emerald-500",
+  },
+  RESTRICTED: {
+    label: "Action needed",
+    className: `${base} bg-red-500/10 text-red-700 dark:text-red-300`,
+    dot: "bg-red-500",
   },
 };
 

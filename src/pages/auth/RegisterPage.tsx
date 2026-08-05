@@ -50,10 +50,13 @@ export default function RegisterPage() {
     clearErrors();
     setSubmitting(true);
     try {
-      // POST /auth/register — creates the tenant + admin account.
+      // POST /auth/register — creates the tenant + admin, and the tenant's Stripe
+      // Express account on the backend side.
       const data = await api.auth.register(values);
       setSession(data.user, data.token, data.tenant, data.permissions);
-      navigate("/dashboard");
+      // Into Stripe's KYC form, not the dashboard: it's the last step of signing up,
+      // not a separate errand. That page redirects itself and offers "Skip for now".
+      navigate("/onboarding/payouts", { replace: true });
     } catch (err) {
       // Backend is the single source of validation. It returns
       // { errors: { field: message } } for both bean-validation and
