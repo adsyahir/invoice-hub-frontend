@@ -8,7 +8,23 @@ export interface UpdateOrganizationInput {
   taxId?: string;
 }
 
-/** Update the organization profile (PUT /settings). */
+export interface Organization {
+  uuid: string;
+  name: string;
+  slug: string;
+  plan: string;
+  billingEmail?: string | null;
+  defaultCurrency: string;
+  taxId?: string | null;
+  maxUsers: number;
+  maxInvoicesPerMonth: number;
+}
+
+/** The caller's own organization profile. No id — the server uses your tenant. */
+export const getOrganization = () =>
+  instance.get<Organization>("/settings").then((r) => r.data);
+
+/** Update the organization profile. */
 export const updateOrganization = (uuid: string, payload: UpdateOrganizationInput) =>
   instance.patch(`/settings/${uuid}`, payload).then((r) => r.data);
 

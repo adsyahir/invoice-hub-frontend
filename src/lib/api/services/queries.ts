@@ -19,6 +19,7 @@ import type {
 } from "@/types";
 import * as clientsApi from "./clients";
 import * as invoicesApi from "./invoices";
+import type { UpdateInvoiceInput } from "./invoices";
 import * as paymentsApi from "./payments";
 import * as reportsApi from "./reports";
 import * as notificationsApi from "./notifications";
@@ -26,6 +27,7 @@ import * as searchApi from "./search";
 import * as tenantsApi from "./tenants";
 import * as teamsApi from "./team";
 import * as payoutsApi from "./payouts";
+import * as settingsApi from "./settings";
 import * as publicInvoicesApi from "./publicInvoices";
 
 /** Fake latency for the hooks still on mock data. Delete with the last mock queryFn. */
@@ -50,6 +52,7 @@ export const queryKeys = {
   plans: ["plans"] as const,
   notifications: ["notifications"] as const,
   payouts: ["payouts"] as const,
+  organization: ["organization"] as const,
   search: (q: string) => ["search", q] as const,
 };
 
@@ -290,6 +293,16 @@ export function usePlans() {
   });
 }
 
+// ---- Organization settings ----
+
+/** The caller's own organization profile (Settings → Organization). */
+export function useOrganization() {
+  return useQuery({
+    queryKey: queryKeys.organization,
+    queryFn: () => settingsApi.getOrganization(),
+  });
+}
+
 // ---- Payouts (Stripe Connect onboarding) ----
 
 /**
@@ -344,25 +357,23 @@ export function useOpenPayoutsDashboard() {
 // ---- Mutations (UI-only stubs) ----
 
 /**
- * Generic stubbed mutation. Resolves after a short delay so buttons show a
- * pending state and success toasts fire. Swap `mutationFn` for the real call
- * and invalidate the relevant queryKey on success.
+ * Edit a DRAFT invoice.
+ *
+ * The server rejects a non-draft edit, so a 409 here is expected behaviour rather than a bug —
+ * the caller surfaces the message.
  */
-function useStubMutation<TVars = unknown>(invalidate?: readonly unknown[]) {
+export function useUpdateInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: TVars) => {
-      // TODO(backend): perform the real POST/PUT/PATCH/DELETE here.
-      return mockDelay(vars, 600);
-    },
-    onSuccess: () => {
-      if (invalidate) qc.invalidateQueries({ queryKey: invalidate });
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateInvoiceInput }) =>
+      invoicesApi.update(id, payload),
+    onSuccess: (_updated, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.invoice(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
   });
 }
-
-export const useCreateInvoice = () => useStubMutation(queryKeys.invoices);
-export const useUpdateInvoice = () => useStubMutation(queryKeys.invoices);
 
 /** Invalidate both the invoice list and the single invoice after a lifecycle action. */
 function useInvoiceActionMutation(fn: (id: string) => Promise<unknown>) {
@@ -393,10 +404,18 @@ export function useSubmitEInvoice() {
     },
   });
 }
-// TODO(backend): cancel not implemented server-side yet.
-export const useCancelEInvoice = () => useStubMutation(queryKeys.invoices);
-export const useCreateClient = () => useStubMutation(queryKeys.clients);
-export const useUpdateClient = () => useStubMutation(queryKeys.clients);
+/** Cancel a validated e-invoice with LHDN. Refused server-side past the 72-hour window. */
+export function useCancelEInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      invoicesApi.cancelEInvoice(id, reason),
+    onSuccess: (_updated, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.invoices });
+      qc.invalidateQueries({ queryKey: queryKeys.invoice(id) });
+    },
+  });
+}
 export function useRecordPayment() {
   const qc = useQueryClient();
   return useMutation({
@@ -425,7 +444,6 @@ export function useRefundPayment() {
     },
   });
 }
-export const useInviteMember = () => useStubMutation(queryKeys.team);
 export function useUpdateTenantStatus() {
   const qc = useQueryClient();
   return useMutation({

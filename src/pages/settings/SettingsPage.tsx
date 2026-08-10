@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { currencyOptions } from "@/lib/options";
+import { useOrganization } from "@/lib/api/services/queries";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 
@@ -36,14 +37,13 @@ export default function SettingsPage() {
 
   const [organizationName, setOrganizationName] = useState(tenant?.name ?? "");
   const [workspaceSubdomain, setWorkspaceSubdomain] = useState(tenant?.slug ?? "");
-  const [billingEmail, setBillingEmail] = useState("billing@novosoft.dev");
+  const [billingEmail, setBillingEmail] = useState("");
   const [defaultCurrency, setDefaultCurrency] = useState("MYR");
-  const [taxId, setTaxId] = useState("C20211234567");
+  const [taxId, setTaxId] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   // Field-level errors from the backend ({ errors: { field: message } }).
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
-  console.log("Tenant:", tenant);
   const clearError = (field: string) =>
     setServerErrors((e) => ({ ...e, [field]: undefined as unknown as string }));
 
@@ -51,10 +51,32 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState({
     organizationName: tenant?.name ?? "",
     workspaceSubdomain: tenant?.slug ?? "",
-    billingEmail: "billing@novosoft.dev",
+    billingEmail: "",
     defaultCurrency: "MYR",
-    taxId: "C20211234567",
+    taxId: "",
   });
+
+  // The real profile. Until this lands the form shows what the session already knows
+  // (name and slug) and blanks for the rest — never invented values.
+  const organization = useOrganization();
+
+  useEffect(() => {
+    const org = organization.data;
+    if (!org) return;
+    const next = {
+      organizationName: org.name,
+      workspaceSubdomain: org.slug,
+      billingEmail: org.billingEmail ?? "",
+      defaultCurrency: org.defaultCurrency ?? "MYR",
+      taxId: org.taxId ?? "",
+    };
+    setSaved(next);
+    setOrganizationName(next.organizationName);
+    setWorkspaceSubdomain(next.workspaceSubdomain);
+    setBillingEmail(next.billingEmail);
+    setDefaultCurrency(next.defaultCurrency);
+    setTaxId(next.taxId);
+  }, [organization.data]);
 
   const currencyLabel =
     currencyOptions.find((o) => o.value === saved.defaultCurrency)?.label ??

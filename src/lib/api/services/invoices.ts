@@ -71,10 +71,17 @@ export const create = (payload: InvoiceInput) =>
     .post<CreateInvoiceResult>("/invoices/create", payload)
     .then((r) => r.data);
 
-// export const update = (id: string, payload: Partial<InvoiceInput>) =>
-//   instance
-//     .put<Invoice>(`/invoices/${id}`, payload)
-//     .then((r) => r.data);
+/**
+ * Edit a DRAFT invoice. The server refuses anything else, recomputes the totals from the
+ * line items, and ignores any amounts sent from here.
+ *
+ * Neither the invoice number nor the client can be changed — reassigning an invoice to a
+ * different company is a new invoice, not an edit.
+ */
+export type UpdateInvoiceInput = Omit<InvoiceInput, "invoiceNumber" | "clientId">;
+
+export const update = (id: string, payload: UpdateInvoiceInput) =>
+  instance.put<Invoice>(`/invoices/${id}`, payload).then((r) => r.data);
 
 /** Send the invoice to its client (email + pay link); DRAFT -> SENT. */
 export const send = (id: string) =>
@@ -109,6 +116,12 @@ export const getPdf = (id: string) =>
     .then((r) => r.data as Blob);
 
 // --- LHDN MyInvois e-invoicing (Malaysia) ---
+
+/** Cancel a validated e-invoice with LHDN. Only valid within 72h of validation. */
+export const cancelEInvoice = (id: string, reason?: string) =>
+  instance
+    .post<Invoice>(`/invoices/${id}/einvoice/cancel`, { reason })
+    .then((r) => r.data);
 
 /** Submit the invoice to LHDN MyInvois; returns the updated invoice. */
 export const submitEInvoice = (id: string) =>

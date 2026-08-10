@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormRow } from "@/components/common/FormRow";
-import { formatCurrency } from "@/lib/format";
 import type { Invoice } from "@/types";
 
 interface Props {
@@ -26,9 +25,11 @@ export function CreditNoteDialog({ invoice, open, onOpenChange }: Props) {
   const [reason, setReason] = useState("");
 
   const submit = () => {
-    // TODO(backend): POST credit note against this invoice.
-    toast.success("Credit note issued", {
-      description: `${formatCurrency(amount, invoice.currency)} credited against ${invoice.invoiceNumber}.`,
+    // TODO(backend): credit notes are a separate document (LHDN type "02") with their own
+    // table, numbering and PDF — not built yet. Say so rather than showing a success toast
+    // for something that was never recorded.
+    toast.error("Credit notes aren't available yet", {
+      description: `Nothing was credited against ${invoice.invoiceNumber}.`,
     });
     onOpenChange(false);
   };

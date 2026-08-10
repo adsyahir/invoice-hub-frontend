@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import axios from "axios";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -111,15 +112,50 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     label: c.name,
   }));
 
+  /** Only the client-supplied fields — the backend recomputes every amount. */
+  const lineItemsPayload = (values: FormValues) =>
+    values.lineItems.map((li) => ({
+      description: li.description,
+      quantity: li.quantity,
+      unitPrice: li.unitPrice,
+      taxRate: li.taxRate,
+    }));
+
   const onSubmit = async (values: FormValues) => {
-    // Edit has no backend endpoint yet — keep the existing stubbed behavior.
     if (isEdit) {
-      updateInvoice.mutate(values, {
-        onSuccess: () => {
-          toast.success("Invoice updated", { description: `${invoice?.invoiceNumber} saved.` });
-          navigate(`/invoices/${invoice!.id}`);
+      // Neither the invoice number nor the client is sent: the server treats both as
+      // immutable on an edit, and only a DRAFT may be edited at all.
+      updateInvoice.mutate(
+        {
+          id: invoice!.id,
+          payload: {
+            issueDate: values.issueDate,
+            dueDate: values.dueDate,
+            currency: values.currency,
+            notes: values.notes,
+            internalNotes: values.internalNotes,
+            lineItems: lineItemsPayload(values),
+          },
         },
-      });
+        {
+          onSuccess: () => {
+            toast.success("Invoice updated", { description: `${invoice?.invoiceNumber} saved.` });
+            navigate(`/invoices/${invoice!.id}`);
+          },
+          onError: (err) => {
+            // A 409 here is the server refusing to edit a sent/paid/filed invoice — show
+            // its message rather than a generic failure.
+            const message =
+              axios.isAxiosError(err) &&
+              (err.response?.data as { detail?: string; message?: string } | undefined);
+            toast.error("Couldn't save the invoice", {
+              description:
+                (message && (message.detail ?? message.message)) ??
+                "Please try again.",
+            });
+          },
+        },
+      );
       return;
     }
 
@@ -131,13 +167,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       currency: values.currency,
       notes: values.notes,
       internalNotes: values.internalNotes,
-      // Only the client-supplied fields; the backend recomputes all amounts.
-      lineItems: values.lineItems.map((li) => ({
-        description: li.description,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        taxRate: li.taxRate,
-      })),
+      lineItems: lineItemsPayload(values),
     };
 
     setServerErrors({});
