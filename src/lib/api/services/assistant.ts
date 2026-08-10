@@ -7,7 +7,6 @@
  * those and yield the `c` payloads. The AssistantPage consumes this generator and
  * is unaware of the transport.
  */
-import { useAuthStore } from "@/stores/auth-store";
 
 export type AssistantRole = "user" | "assistant";
 
@@ -37,24 +36,32 @@ export const suggestedPrompts = [
 // the Vite proxy by default, or VITE_BACKEND_URL for a direct cross-origin call.
 const BASE_URL = (import.meta.env.VITE_BACKEND_URL ?? "") + "/api";
 
+/** Reads Spring's readable XSRF-TOKEN cookie and echoes it back as the double-submit header. */
+function csrfHeader(): Record<string, string> {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return match ? { "X-XSRF-TOKEN": decodeURIComponent(match[1]) } : {};
+}
+
 /**
  * Stream an assistant reply as text chunks from the backend.
  *
- * Uses `fetch` (not axios) because axios buffers the whole response in the
- * browser and can't expose a readable stream. The bearer token is read from the
- * same auth store the axios interceptor uses.
+ * Uses `fetch` (not axios) because axios buffers the whole response in the browser and can't
+ * expose a readable stream. Authentication rides on the httpOnly cookie via
+ * `credentials: "include"` — nothing to attach by hand.
+ *
+ * The CSRF header is attached by hand, though: this is a POST, so Spring requires it, and
+ * unlike axios `fetch` has no built-in double-submit support.
  */
 export async function* streamAssistantReply(
   q: AssistantQuery,
 ): AsyncGenerator<string> {
-  const token = useAuthStore.getState().token;
 
   const res = await fetch(`${BASE_URL}/ai/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...csrfHeader(),
     },
     credentials: "include",
     body: JSON.stringify(q),

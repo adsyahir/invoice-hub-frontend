@@ -32,7 +32,7 @@ export default function LoginPage() {
     try {
       // POST /auth/login
       const data = await api.auth.login(values.email, values.password);
-      setSession(data.user, data.token, data.tenant, data.permissions);
+      setSession(data.user, data.tenant, data.permissions);
       navigate("/dashboard");
     } catch {
       toast.error("Login failed", {

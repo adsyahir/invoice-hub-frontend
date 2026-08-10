@@ -1,9 +1,16 @@
 import { create } from "zustand";
 import type { Tenant, User, UserRole } from "@/types";
 
+/**
+ * Session state — who is signed in, not how they prove it.
+ *
+ * There is deliberately no token here. Both auth tokens live in httpOnly cookies the browser
+ * manages; the app only ever knows *that* it is authenticated, never the credential. That is
+ * what stops an XSS payload from reading a token out of the store and replaying it elsewhere.
+ */
 interface AuthState {
   isAuthenticated: boolean;
-  /** False until the on-load session restore (refresh) has finished. */
+  /** False until the on-load session restore has finished. */
   bootstrapped: boolean;
   user: User | null;
   /**
@@ -13,20 +20,14 @@ interface AuthState {
    */
   actualRole: UserRole | null;
   tenant: Tenant | null;
-  token: string | null;
   /** Effective permissions for the current user (e.g. "invoice:write"). */
   permissions: string[];
-  setToken: (token: string) => void;
   setUser: (user: User, tenant?: Tenant, permissions?: string[]) => void;
   finishBootstrap: () => void;
-  login: (
-    user: User,
-    token: string,
-    tenant?: Tenant,
-    permissions?: string[],
-  ) => void;
+  login: (user: User, tenant?: Tenant, permissions?: string[]) => void;
   logout: () => void;
-  clearToken: () => void;
+  /** Drops the local session after the server rejected it (expired/revoked cookie). */
+  clearSession: () => void;
   switchRole: (role: UserRole) => void;
 }
 
@@ -36,10 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   actualRole: null,
   tenant: null,
-  token: null,
   permissions: [],
-
-  setToken: (token) => set({ token }),
 
   setUser: (user, tenant, permissions) =>
     set({
@@ -52,13 +50,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   finishBootstrap: () => set({ bootstrapped: true }),
 
-  login: (user, token, tenant, permissions) =>
+  login: (user, tenant, permissions) =>
     set({
       isAuthenticated: true,
       user,
       actualRole: user.role,
       tenant: tenant ?? null,
-      token,
       permissions: permissions ?? [],
     }),
 
@@ -68,14 +65,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       user: null,
       actualRole: null,
       tenant: null,
-      token: null,
       permissions: [],
     }),
 
-  clearToken: () =>
+  clearSession: () =>
     set({
       isAuthenticated: false,
-      token: null,
+      user: null,
+      actualRole: null,
+      tenant: null,
       permissions: [],
     }),
 

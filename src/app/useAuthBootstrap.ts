@@ -3,19 +3,17 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 /**
- * Restores the session on app load (Option A).
+ * Restores the session on app load.
  *
- * The access token lives only in memory, so on a fresh page load we ask the
- * server for a new one using the httpOnly refresh-token cookie (sent because
- * axios is configured with `withCredentials: true`). If that succeeds we then
- * fetch the current user via `/auth/me` and populate the store. If it fails
- * (no/expired cookie), we simply stay logged out.
+ * With both tokens in httpOnly cookies there is no token to put back anywhere — the only
+ * question is whether the browser still holds a valid session, and /auth/me answers it. If the
+ * access cookie has expired, the axios interceptor refreshes once and replays the call
+ * transparently, so this reads as a single request.
  *
- * `bootstrapped` flips to true when this finishes so `RequireAuth` knows it can
- * stop showing the loader and safely decide whether to redirect to /login.
+ * `bootstrapped` flips to true when this finishes, which is what RequireAuth waits on before
+ * deciding to redirect to /login.
  */
 export function useAuthBootstrap() {
-  const setToken = useAuthStore((s) => s.setToken);
   const setUser = useAuthStore((s) => s.setUser);
   const finishBootstrap = useAuthStore((s) => s.finishBootstrap);
 
@@ -24,10 +22,6 @@ export function useAuthBootstrap() {
 
     (async () => {
       try {
-        const { token } = await api.auth.refresh();
-        if (!active) return;
-        setToken(token);
-
         const { user, tenant, permissions } = await api.auth.me();
         if (!active) return;
         setUser(user, tenant, permissions);
@@ -41,5 +35,5 @@ export function useAuthBootstrap() {
     return () => {
       active = false;
     };
-  }, [setToken, setUser, finishBootstrap]);
+  }, [setUser, finishBootstrap]);
 }

@@ -47,7 +47,7 @@ export default function AcceptInvitePage() {
         password: values.password,
         confirmPassword: values.confirm,
       });
-      setSession(data.user, data.token, data.tenant);
+      setSession(data.user, data.tenant);
       navigate("/dashboard"); 
     } catch (err) {
       // Backend owns validation; map any field errors onto the form.

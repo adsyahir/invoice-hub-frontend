@@ -1,10 +1,14 @@
 import { instance } from "./axios";
 import type { Tenant, User } from "@/types";
 
-/** Shape returned by login / register / accept-invite. Adjust to your backend. */
+/**
+ * Shape returned by login / register / accept-invite.
+ *
+ * No token field: the server delivers both tokens as httpOnly cookies, so there is nothing
+ * here for script to read.
+ */
 export interface AuthResponse {
   user: User;
-  token: string;
   tenant?: Tenant;
   permissions: string[];
 }
@@ -37,7 +41,6 @@ export const login = (email: string, password: string): Promise<AuthResponse> =>
     .then((r) => ({
       user: mapUser(r.data.user),
       tenant: r.data.tenant ? mapTenant(r.data.tenant) : undefined,
-      token: r.data.token ?? "",
       permissions: r.data.permissions ?? [],
     }));
 
@@ -69,7 +72,6 @@ interface BackendTenant {
 /** Flat body returned by /auth/login, /auth/register and /auth/me. */
 interface AuthApiResponse {
   message?: string;
-  token?: string;
   user: BackendUser;
   tenant?: BackendTenant;
   permissions?: string[];
@@ -107,7 +109,6 @@ export const register = (payload: RegisterInput): Promise<AuthResponse> =>
     .then((r) => ({
       user: mapUser(r.data.user),
       tenant: r.data.tenant ? mapTenant(r.data.tenant) : undefined,
-      token: r.data.token ?? "",
       permissions: r.data.permissions ?? [],
     }));
 
@@ -126,7 +127,6 @@ export const acceptInvite = (payload: AcceptInviteInput): Promise<AuthResponse> 
     .then((r) => ({
       user: mapUser(r.data.user),
       tenant: r.data.tenant ? mapTenant(r.data.tenant) : undefined,
-      token: r.data.token ?? "",
       permissions: r.data.permissions ?? [],
     }));
 
@@ -140,16 +140,16 @@ export const resetPassword = (token: string, password: string) =>
     .post<void>("/auth/reset-password", { token, password })
     .then((r) => r.data);
 
-// Single-flight: concurrent callers (StrictMode's double-invoked effect, or
-// several 401s at once) share one in-flight /auth/refresh instead of each firing
-// its own duplicate request.
-let inFlightRefresh: Promise<{ token: string }> | null = null;
+// Single-flight: concurrent callers (StrictMode's double-invoked effect, or several 401s at
+// once) share one in-flight /auth/refresh instead of each firing its own duplicate request.
+// Resolves to nothing — the refreshed access token arrives as a Set-Cookie header.
+let inFlightRefresh: Promise<void> | null = null;
 
-export const refresh = (): Promise<{ token: string }> => {
+export const refresh = (): Promise<void> => {
   if (!inFlightRefresh) {
     inFlightRefresh = instance
-      .post<{ token: string }>("/auth/refresh")
-      .then((r) => r.data)
+      .post("/auth/refresh")
+      .then(() => undefined)
       .finally(() => {
         inFlightRefresh = null;
       });

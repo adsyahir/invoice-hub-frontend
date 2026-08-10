@@ -53,7 +53,7 @@ export default function RegisterPage() {
       // POST /auth/register — creates the tenant + admin, and the tenant's Stripe
       // Express account on the backend side.
       const data = await api.auth.register(values);
-      setSession(data.user, data.token, data.tenant, data.permissions);
+      setSession(data.user, data.tenant, data.permissions);
       // Into Stripe's KYC form, not the dashboard: it's the last step of signing up,
       // not a separate errand. That page redirects itself and offers "Skip for now".
       navigate("/onboarding/payouts", { replace: true });
